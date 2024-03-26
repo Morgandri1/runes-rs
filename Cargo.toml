@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 async-trait = "0.1"
-bitcoin = { version = "0.31", features = ["rand"] }
+bitcoin = { version = "0.31", features = ["rand"] } # Should rand be replaced by rand-std or not?
 ciborium = "0.2"
 http = "1"
 log = "0.4"
@@ -20,21 +20,21 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 serde_with = { version = "3", default-features = false, features = ["macros"] }
 thiserror = "1"
-
-[dev-dependencies]
 anyhow = "1"
-argh = "0.1"
-bip39 = "2"
-env_logger = "0.11"
 hex = "0.4"
-hex-literal = "0.4"
-rand = { version = "0.8" }
 reqwest = { version = "0.11", default-features = false, features = [
     "json",
     "rustls-tls",
     "trust-dns",
 ] }
 tokio = { version = "1", features = ["full"] }
+
+[dev-dependencies]
+argh = "0.1"
+bip39 = "2"
+env_logger = "0.11"
+hex-literal = "0.4"
+rand = { version = "0.8" }
 
 [[example]]
 name = "generate-address"
