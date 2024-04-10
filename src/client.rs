@@ -8,13 +8,14 @@ use crate::wallet::Utxo;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Client {
-    pub network: Network
+    pub network: Network,
+    pub rpc_url?: String
 }
 impl Client {
     pub fn new(network: Network) -> Self {
         Self { network }
     }
-    
+
     pub async fn broadcast_transaction(
         self: Self,
         transaction: &Transaction,
@@ -25,19 +26,19 @@ impl Client {
             Network::Signet => "/signet",
             _ => "",
         };
-    
+
         let url = format!("https://blockstream.info{network_str}/api/tx");
         let tx_hex = hex::encode(bitcoin::consensus::serialize(&transaction));
         debug!("tx_hex ({}): {tx_hex}", tx_hex.len());
-    
+
         let result = reqwest::Client::new()
             .post(&url)
             .body(tx_hex)
             .send()
             .await?;
-    
+
         debug!("result: {:?}", result);
-    
+
         if result.status().is_success() {
             let txid = result.text().await?;
             debug!("txid: {txid}");
@@ -49,7 +50,7 @@ impl Client {
             ))
         }
     }
-    
+
     pub async fn sats_amount_from_tx_inputs(
         self: Self,
         inputs: &[(Txid, u32)],
@@ -61,7 +62,7 @@ impl Client {
                 .vout
                 .get(*index as usize)
                 .ok_or_else(|| anyhow::anyhow!("invalid index {} for txid {}", index, txid))?;
-    
+
             output_inputs.push(Utxo {
                 id: *txid,
                 index: *index,
@@ -70,7 +71,7 @@ impl Client {
         }
         Ok(output_inputs)
     }
-    
+
     pub async fn get_tx_by_hash(self: Self, txid: &Txid) -> anyhow::Result<ApiTransaction> {
         let network_str = match self.network {
             Network::Testnet => "/testnet",
@@ -78,12 +79,12 @@ impl Client {
             Network::Signet => "/signet",
             _ => "",
         };
-    
+
         let url = format!("https://blockstream.info{network_str}/api/tx/{}", txid);
         let tx = reqwest::get(&url).await?.json().await?;
         Ok(tx)
     }
-    
+
     #[allow(dead_code)]
     pub async fn wait_for_tx(self: Self, txid: &Txid) -> anyhow::Result<()> {
         loop {
@@ -112,13 +113,13 @@ pub mod ClientTests {
     use super::*;
     use bitcoin::secp256k1::Secp256k1;
     use bitcoin::{PublicKey, PrivateKey};
-    
+
     #[test]
     fn test_instantiation() {
         let client = Client::new(Network::Testnet);
         assert_eq!(client.network, Network::Testnet);
     }
-    
+
     #[tokio::test]
     async fn test_broadcast_transaction() {
         let network = Network::Testnet;
@@ -131,23 +132,23 @@ pub mod ClientTests {
         let pubkey = PublicKey::new(public_key);
         let private_key = PrivateKey::new(secret_key, network);
         let sender_address = Address::p2wpkh(&pubkey, network).unwrap();
-        
+
         let Fees {
             commit_fee,
             reveal_fee,
             ..
         } = calc_fees(network);
         info!("Commit fee: {commit_fee}, reveal fee: {reveal_fee}",);
-    
+
         let inputs = client.sats_amount_from_tx_inputs(&inputs).await?;
-    
+
         debug!("getting commit transaction...");
         let mut builder = match args.script_type.as_str() {
             "p2tr" | "P2TR" => OrdTransactionBuilder::p2tr(private_key),
             "p2wsh" | "P2WSH" => OrdTransactionBuilder::p2wsh(private_key),
             _ => panic!("invalid script type"),
         };
-    
+
         let commit_tx = builder
             .build_commit_transaction(
                 network,
@@ -163,5 +164,5 @@ pub mod ClientTests {
             .await?;
         debug!("commit transaction: {commit_tx:?}");
     }
-    
+
 }
